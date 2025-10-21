@@ -1,5 +1,7 @@
 import tkinter as tk
 
+from gameLogic import GameLogic
+
 class MenuPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -47,12 +49,9 @@ class MenuPage(tk.Frame):
             self.alert_label.config(text = "Gameboard dimensions must be size 3-15.")
 
 class GamePage(tk.Frame):
-
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-
-        self.current_player = "p1"
 
         main_container = tk.Frame(self)
         main_container.pack(expand=True, fill="both")
@@ -103,7 +102,10 @@ class GamePage(tk.Frame):
         self.turn_label.grid(row=0, column=0, sticky="n")
         self.bottom_frame.grid_columnconfigure(0, weight=1)
 
-        
+    # Import Game Logic
+    def set_logic(self, logic):
+        self.logic = logic
+
     def create_board(self):
         # Clear previous widgets
         for widget in self.board_frame.winfo_children():
@@ -119,26 +121,21 @@ class GamePage(tk.Frame):
 
         for r in range(size):
             for c in range(size):
-                btn = tk.Button(self.board_frame, text="", font=("Arial", max(12, btn_pixel // 2)), fg = "black", bg = "white", width=btn_pixel, height=btn_pixel)
-                btn.config(command=lambda b=btn: self.handle_click(b))
+                btn = tk.Button(self.board_frame, text="", font=("Arial", max(12, btn_pixel // 2)), fg="black", bg="white")
                 btn.place(x=c*btn_pixel, y=r*btn_pixel, width=btn_pixel, height=btn_pixel)
+                btn.config(command=lambda b=btn, r=r, c=c: self.handle_click(b, r, c))
 
-    def handle_click(self, btn):
-        if self.current_player == "p1":
+    def handle_click(self, btn, row, col):
+        if self.logic.get_current_player() == "p1":
             letter = self.left_choice.get()
-            self.current_player = "p2"
-            self.turn_label.config(text="Current Turn: P2")
         else:
-            if self.current_player == "p2":
-                letter = self.right_choice.get()
-                self.current_player ="p1"
-                self.turn_label.config(text="Current Turn: P1")
-        btn.config(text=letter)
+            letter = self.right_choice.get()
+    
+        if self.logic.place_letter(row, col, letter):
+            btn.config(text=letter, state="disabled", disabledforeground="black")
+            self.logic.switch_turn()
+            self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
-        btn.config(text=letter)        # place the letter on the button
-        btn.config(state="disabled")   # makes the button unclickable
-        btn.config(text=letter, state="disabled", disabledforeground="black") # prevents greying out text when button is clicked for visibility
-        
 class SOSApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -166,6 +163,9 @@ class SOSApp(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
         if page_name == "GamePage":
+        # Initialize the game logic for this grid size
+            self.logic = GameLogic(self.grid_size)
+            frame.set_logic(self.logic)  # pass it to GamePage
             frame.create_board()
 
 if __name__ == "__main__":
