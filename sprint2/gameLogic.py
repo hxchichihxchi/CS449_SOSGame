@@ -1,5 +1,11 @@
 class GameLogic:
     def __init__(self, size):
+        # Added for sizing tests
+        if not isinstance(size, int):
+            raise TypeError(f"Size must be an integer, not {type(size).__name__}")
+        if size < 3 or size > 15:
+            raise ValueError(f"Size must be between 3 and 15, got {size}")
+        
         self.size = size
         self.current_player = "p1"
         self.board = [["" for _ in range(size)] for _ in range(size)]

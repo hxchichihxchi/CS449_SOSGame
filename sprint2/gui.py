@@ -39,9 +39,15 @@ class MenuPage(tk.Frame):
             self.alert_label.config(text = "Enter a value for board size.")
             return
         try:
-            size = int(self.entry.get())
+            size = int(value)
             if size < 3 or size > 15:
                 raise ValueError()
+            # For unit testing: hypothetical unselected mode
+            mode = self.selected_option.get()
+            if not mode:
+                self.alert_label.config(text="Please select a game mode.")
+                return
+            
             self.controller.grid_size = size
             self.controller.mode = self.selected_option.get()
             self.controller.show_frame("GamePage")
@@ -58,39 +64,46 @@ class GamePage(tk.Frame):
         main_container.grid_rowconfigure(0, weight=1)
         main_container.grid_columnconfigure(0, weight=0)  # left panel
         main_container.grid_columnconfigure(1, weight=1)  # board
-        main_container.grid_columnconfigure(2, weight=0)  
+        main_container.grid_columnconfigure(2, weight=0)
 
          # Left panel
         self.left_frame = tk.Frame(main_container, width=200)
         self.left_frame.grid(row=0, column=0, sticky="ns")
-        # add widgets to left_frame
-        tk.Label(self.left_frame, text="0", fg = "cyan", font=("Arial", 72)).pack(padx=10)
-        tk.Label(self.left_frame, text="P1", fg = "cyan", font=("Arial", 20)).pack(padx=10)
 
-        self.left_choice = tk.StringVar(value="S")
+        # P1 Score (General)
+        self.left_score_label = tk.Label(self.left_frame, text="0", fg = "cyan", font=("Arial", 72))   # Currently a placeholder
+
+        # S/O Selection for P1 (General Mode)
+        self.left_choice = tk.StringVar(value="S") # Defaults to S as selected
+        self.left_name_label = tk.Label(self.left_frame, text="P1", fg = "cyan", font=("Arial", 20)).pack(padx=10)
         tk.Radiobutton(self.left_frame, text="S", variable=self.left_choice, value = "S", fg="white", font=("Arial", 20)).pack(pady=5)
         tk.Radiobutton(self.left_frame, text="O", variable=self.left_choice, value = "O", fg="white", font=("Arial", 20)).pack(pady=5)
 
         # Board wrapper (centers the the board)
         self.board_wrapper = tk.Frame(main_container)
         self.board_wrapper.grid(row=0, column=1, sticky="nsew")
-        self.board_wrapper.grid_rowconfigure(0, weight=1)
-        self.board_wrapper.grid_columnconfigure(0, weight=1)
+        self.board_wrapper.grid_rowconfigure(1, weight=1) # label row
+        self.board_wrapper.grid_columnconfigure(0, weight=1)    # board row
+
+        # Game Mode Display
+        self.mode_label = tk.Label(self.board_wrapper, text="", fg="white", font=("Arial", 20))
+        self.mode_label.grid(row=0, column=0, pady=10)
 
         # Actual board inside wrapper
         self.board_frame = tk.Frame(self.board_wrapper, width=600, height=600)
-        self.board_frame.grid(row=0, column=0)
+        self.board_frame.grid(row=1, column=0)
         self.board_frame.grid_propagate(False)
 
         # Right panel
         self.right_frame = tk.Frame(main_container, width=200)
         self.right_frame.grid(row=0, column=2, sticky="ns")
         
-        # Placeholder Player Scores
-        tk.Label(self.right_frame, text="0", fg = "red",font=("Arial", 72)).pack(padx=10)
-        tk.Label(self.right_frame, text="P2", fg = "red", font=("Arial", 20)).pack(padx=10)
+        # P2 Score (General)
+        self.right_score_label = tk.Label(self.right_frame, text="0", fg = "red",font=("Arial", 72)) # Currently a placeholder
 
-        self.right_choice = tk.StringVar(value="S")
+        # S/O Selection for P2 (General Mode)
+        self.right_choice = tk.StringVar(value="S") # Defaults to S as selected
+        tk.Label(self.right_frame, text="P2", fg = "red", font=("Arial", 20)).pack(padx=10)
         tk.Radiobutton(self.right_frame, text="S", variable=self.right_choice, value = "S", fg="white", font=("Arial", 20)).pack(pady=5)
         tk.Radiobutton(self.right_frame, text="O", variable=self.right_choice, value = "O", fg="white", font=("Arial", 20)).pack(pady=5)
 
@@ -105,6 +118,20 @@ class GamePage(tk.Frame):
     # Import Game Logic
     def set_logic(self, logic):
         self.logic = logic
+
+    # Update Game Mode Label
+    def update_mode_label(self):
+        self.mode_label.config(text=f"Mode: {self.controller.mode.capitalize()}")
+    
+    # Scoreboard for General Game
+    def update_score_visibility(self):
+        if self.controller.mode == "general":
+            self.left_score_label.pack(padx=10)
+            self.right_score_label.pack(padx=10)
+        else:
+            self.left_score_label.pack_forget()
+            self.right_score_label.pack_forget()
+
 
     def create_board(self):
         # Clear previous widgets
@@ -165,7 +192,9 @@ class SOSApp(tk.Tk):
         if page_name == "GamePage":
         # Initialize the game logic for this grid size
             self.logic = GameLogic(self.grid_size)
-            frame.set_logic(self.logic)  # pass it to GamePage
+            frame.set_logic(self.logic)     # pass it to GamePage
+            frame.update_mode_label()       # mode label in game board
+            frame.update_score_visibility() # score board
             frame.create_board()
 
 if __name__ == "__main__":
