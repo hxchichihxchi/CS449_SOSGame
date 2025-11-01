@@ -44,9 +44,43 @@ class SimpleGame():
     def get_current_player(self):
         return self.current_player
     
-    def gameOver(self):
+    def sosCheck(self):
         # Return True when first SOS is formed
-        pass
+        # Horizontal Check
+        for r in range(self.size):          # for each row
+            for c in range(self.size - 2):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r][c+1] == "O" and \
+                self.board[r][c+2] == "S":
+                    print('Horizontal SOS Found')
+                    return True
+        # Vertical Check
+        for c in range(self.size):          # for each column
+            for r in range(self.size - 2): # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c] == "O" and \
+                self.board[r+2][c] == "S":
+                    print('Vertical SOS Found')
+                    return True
+        # Diagonal Check (\ - Top Left to Bottom Right)
+        for r in range(self.size - 2):          # for each row
+            for c in range(self.size - 2):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c+1] == "O" and \
+                self.board[r+2][c+2] == "S":
+                    print("Diagonal TL-BR SOS Found")
+                    return True
+        # Diagonal Check (/ - Bottom Left to Top Right)
+        for r in range(self.size - 2):          # for each row
+            for c in range(2, self.size):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c-1] == "O" and \
+                self.board[r+2][c-2] == "S":
+                    print("Diagonal BL-TR SOS Found")
+                    return True
+                
+    def gameOver(self):
+        return self.sosCheck()
 
 class GeneralGame():
     def __init__(self, size):
@@ -72,6 +106,49 @@ class GeneralGame():
     def get_current_player(self):
         return self.current_player
     
-    def gameOver(self):
+    def sosCheck(self):
         # Return True when first SOS is formed
+        # Horizontal Check
+        for r in range(self.size):          # for each row
+            for c in range(self.size - 2):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r][c+1] == "O" and \
+                self.board[r][c+2] == "S":
+                    print('Horizontal SOS Found')
+                    return True
+        # Vertical Check
+        for c in range(self.size):          # for each column
+            for r in range(self.size - 2): # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c] == "O" and \
+                self.board[r+2][c] == "S":
+                    print('Vertical SOS Found')
+                    return True
+        # Diagonal Check (\ - Top Left to Bottom Right)
+        for r in range(self.size - 2):          # for each row
+            for c in range(self.size - 2):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c+1] == "O" and \
+                self.board[r+2][c+2] == "S":
+                    print("Diagonal TL-BR SOS Found")
+                    return True
+        # Diagonal Check (/ - Bottom Left to Top Right)
+        for r in range(self.size - 2):          # for each row
+            for c in range(2, self.size):  # stop 2 before the end
+                if self.board[r][c] == "S" and \
+                self.board[r+1][c-1] == "O" and \
+                self.board[r+2][c-2] == "S":
+                    print("Diagonal BL-TR SOS Found")
+                    return True
+                
+    def gameOver(self):
         pass
+
+# # Testing SOS Found w/o GUI
+# if __name__ == "__main__":
+#     g = SimpleGame(3)
+#     g.place_letter(0,0,'S')
+#     g.place_letter(0,1,'O')
+#     g.place_letter(0,2,'S')
+#     print("Checking gameOver...")
+#     g.gameOver()

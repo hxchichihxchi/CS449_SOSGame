@@ -160,8 +160,13 @@ class GamePage(tk.Frame):
     
         if self.logic.place_letter(row, col, letter):
             btn.config(text=letter, state="disabled", disabledforeground="black")
-            self.logic.switch_turn()
-            self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
+            if self.logic.gameOver():   # Calls Game Over, depends on mode.
+                print('Game End')
+                for widget in self.board_frame.winfo_children():    # Disables all buttons on board to prevent further play.
+                    widget.config(state="disabled")
+            else:
+                self.logic.switch_turn()
+                self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
 class SOSApp(tk.Tk):
     def __init__(self):
