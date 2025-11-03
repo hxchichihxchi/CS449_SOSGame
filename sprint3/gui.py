@@ -173,18 +173,25 @@ class GamePage(tk.Frame):
                     self.logic.switch_turn()
                     self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
-            else:  # general mode
+            if self.controller.mode == "general":
                 board_full, sos_count = self.logic.gameOver()
+
                 if sos_count > 0:
                     print(f"{sos_count} SOS found! Add points to current player.")
+                    # player keeps turn, so no switch
+
+                else:
+                    self.logic.switch_turn()  # switch only if no SOS
+
                 if board_full:
                     print("Game Over - Board full")
                     for widget in self.board_frame.winfo_children():
                         widget.config(state="disabled")
-                else:
-                    if sos_count == 0:
-                        self.logic.switch_turn() # 
-                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
+
+                # ALWAYS update turn label, regardless of SOS
+                self.turn_label.config(
+                    text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}"
+                )
 
 class SOSApp(tk.Tk):
     def __init__(self):

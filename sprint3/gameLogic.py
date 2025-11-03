@@ -88,6 +88,7 @@ class GeneralGame():
         self.size = size
         self.current_player = "p1"
         self.board = [["" for _ in range(size)] for _ in range(size)]
+        self.found = set()  # Records old SOS sequences
 
     def place_letter(self, row, col, letter):
         # Places letter on the board if empty.
@@ -109,40 +110,60 @@ class GeneralGame():
     def sosCheck(self):
         # Return True when first SOS is formed
         # Horizontal Check
+        count = 0
         for r in range(self.size):          # for each row
             for c in range(self.size - 2):  # stop 2 before the end
                 if self.board[r][c] == "S" and \
                 self.board[r][c+1] == "O" and \
                 self.board[r][c+2] == "S":
-                    print('Horizontal SOS Found')
-                    return True
+                    sos_id = ('H',r, c)     # Sequence Attributes
+                    if sos_id not in self.found:
+                        print('Horizontal SOS Found')
+                        self.found.add(sos_id)
+                        count += 1
+
         # Vertical Check
         for c in range(self.size):          # for each column
             for r in range(self.size - 2): # stop 2 before the end
                 if self.board[r][c] == "S" and \
                 self.board[r+1][c] == "O" and \
                 self.board[r+2][c] == "S":
-                    print('Vertical SOS Found')
-                    return True
+                    sos_id = ('V',r, c)     # Sequence Attributes
+                    if sos_id not in self.found:
+                        print('Vertical SOS Found')
+                        self.found.add(sos_id)
+                        count += 1
+
         # Diagonal Check (\ - Top Left to Bottom Right)
         for r in range(self.size - 2):          # for each row
             for c in range(self.size - 2):  # stop 2 before the end
                 if self.board[r][c] == "S" and \
                 self.board[r+1][c+1] == "O" and \
                 self.board[r+2][c+2] == "S":
-                    print("Diagonal TL-BR SOS Found")
-                    return True
+                    sos_id = ('D1',r, c)     # Sequence Attributes
+                    if sos_id not in self.found:
+                        print("Diagonal TL-BR SOS Found")
+                        self.found.add(sos_id)
+                        count += 1
+
         # Diagonal Check (/ - Bottom Left to Top Right)
         for r in range(self.size - 2):          # for each row
             for c in range(2, self.size):  # stop 2 before the end
                 if self.board[r][c] == "S" and \
                 self.board[r+1][c-1] == "O" and \
                 self.board[r+2][c-2] == "S":
-                    print("Diagonal BL-TR SOS Found")
-                    return True
-                
+                    sos_id = ('D2',r, c)     # Sequence Attributes
+                    if sos_id not in self.found:
+                        print("Diagonal BL-TR SOS Found")
+                        self.found.add(sos_id)
+                        count += 1
+
+        return count
+    
     def gameOver(self):
-        pass
+        sos_count = self.sosCheck()
+        board_full = all(cell != "" for row in self.board for cell in row)
+        return board_full, sos_count
 
 # # Testing SOS Found w/o GUI
 # if __name__ == "__main__":
