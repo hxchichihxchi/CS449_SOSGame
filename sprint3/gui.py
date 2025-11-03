@@ -121,7 +121,7 @@ class GamePage(tk.Frame):
 
     # Update Game Mode Label
     def update_mode_label(self):
-        self.mode_label.config(text=f"Mode: {self.controller.mode.capitalize()}")
+        self.mode_label.config(text=f"{self.controller.mode.capitalize()} Game")
     
     # Scoreboard for General Game
     def update_score_visibility(self):
@@ -153,20 +153,38 @@ class GamePage(tk.Frame):
                 btn.config(command=lambda b=btn, r=r, c=c: self.handle_click(b, r, c))
 
     def handle_click(self, btn, row, col):
+        # Determine letter for current player
         if self.logic.get_current_player() == "p1":
             letter = self.left_choice.get()
         else:
             letter = self.right_choice.get()
-    
+
+        # Place the letter
         if self.logic.place_letter(row, col, letter):
             btn.config(text=letter, state="disabled", disabledforeground="black")
-            if self.logic.gameOver():   # Calls Game Over, depends on mode.
-                print('Game End')
-                for widget in self.board_frame.winfo_children():    # Disables all buttons on board to prevent further play.
-                    widget.config(state="disabled")
-            else:
-                self.logic.switch_turn()
-                self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
+
+            if self.controller.mode == "simple":
+                # Simple mode ends immediately on first SOS
+                if self.logic.gameOver():
+                    print("SOS found! Game Over")
+                    for widget in self.board_frame.winfo_children():
+                        widget.config(state="disabled")
+                else:
+                    self.logic.switch_turn()
+                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
+
+            else:  # general mode
+                board_full, sos_count = self.logic.gameOver()
+                if sos_count > 0:
+                    print(f"{sos_count} SOS found! Add points to current player.")
+                if board_full:
+                    print("Game Over - Board full")
+                    for widget in self.board_frame.winfo_children():
+                        widget.config(state="disabled")
+                else:
+                    if sos_count == 0:
+                        self.logic.switch_turn() # 
+                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
 class SOSApp(tk.Tk):
     def __init__(self):
