@@ -115,6 +115,10 @@ class GamePage(tk.Frame):
         self.turn_label.grid(row=0, column=0, sticky="n")
         self.bottom_frame.grid_columnconfigure(0, weight=1)
 
+        # Canvas
+        self.canvas = None
+        self.btn_pixel = 0
+
     # Import Game Logic
     def set_logic(self, logic):
         self.logic = logic
@@ -132,7 +136,6 @@ class GamePage(tk.Frame):
             self.left_score_label.pack_forget()
             self.right_score_label.pack_forget()
 
-
     def create_board(self):
         # Clear previous widgets
         for widget in self.board_frame.winfo_children():
@@ -140,7 +143,9 @@ class GamePage(tk.Frame):
 
         size = self.controller.grid_size
         board_pixel = 600
-        btn_pixel = board_pixel // size
+        self.btn_pixel = board_pixel // size
+
+        self.buttons = [[None for _ in range(size)] for _ in range(size)]
 
         for r in range(size):
             self.board_frame.grid_rowconfigure(r, weight=1)
@@ -148,16 +153,19 @@ class GamePage(tk.Frame):
 
         for r in range(size):
             for c in range(size):
-                btn = tk.Button(self.board_frame, text="", font=("Arial", max(12, btn_pixel // 2)), fg="black", bg="white")
-                btn.place(x=c*btn_pixel, y=r*btn_pixel, width=btn_pixel, height=btn_pixel)
+                btn = tk.Button(self.board_frame, text="", font=("Arial", max(12, self.btn_pixel // 2)), fg="black", bg="white")
+                btn.place(x=c*self.btn_pixel, y=r*self.btn_pixel, width=self.btn_pixel, height=self.btn_pixel)
                 btn.config(command=lambda b=btn, r=r, c=c: self.handle_click(b, r, c))
+                self.buttons[r][c] = btn
 
     def handle_click(self, btn, row, col):
         # Determine letter for current player
         if self.logic.get_current_player() == "p1":
             letter = self.left_choice.get()
+            line_color = "cyan"
         else:
             letter = self.right_choice.get()
+            line_color = "red"
 
         # Place the letter
         if self.logic.place_letter(row, col, letter):
@@ -165,21 +173,36 @@ class GamePage(tk.Frame):
 
             if self.controller.mode == "simple":
                 # Simple mode ends immediately on first SOS
+                board_full = all(cell != "" for row in self.logic.game_mode.board for cell in row)
                 if self.logic.gameOver():
                     print("SOS found! Game Over")
+                    self.locateSOS(line_color)
+                    # Disables all buttons
                     for widget in self.board_frame.winfo_children():
                         widget.config(state="disabled")
+                    if self.logic.get_current_player() == "p1":
+                        self.turn_label.config(text= "P1 Wins!")
+                    else:
+                        self.turn_label.config(text= "P2 Wins!")
+                    return
+                elif board_full:
+                    self.turn_label.config(text="Draw!")
+                    for widget in self.board_frame.winfo_children():
+                        widget.config(state="disabled")  
+                    return                    
                 else:
                     self.logic.switch_turn()
                     self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
-            if self.controller.mode == "general":
+
+
+            elif self.controller.mode == "general":
                 board_full, sos_count = self.logic.gameOver()
 
                 if sos_count > 0:
                     print(f"{sos_count} SOS found! Add points to current player.")
                     # player keeps turn, so no switch
-
+                    self.update_scores()
                 else:
                     self.logic.switch_turn()  # switch only if no SOS
 
@@ -187,11 +210,82 @@ class GamePage(tk.Frame):
                     print("Game Over - Board full")
                     for widget in self.board_frame.winfo_children():
                         widget.config(state="disabled")
+                    if self.logic.game_mode.p1_score > self.logic.game_mode.p2_score:
+                        self.turn_label.config(text="P1 Wins!")
+                    elif self.logic.game_mode.p1_score < self.logic.game_mode.p2_score:
+                        self.turn_label.config(text="P2 Wins!")
+                    else:
+                        self.turn_label.config(text="Draw!")
+                    return
+                else:
+                    # ALWAYS update turn label, regardless of SOS
+                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
-                # ALWAYS update turn label, regardless of SOS
-                self.turn_label.config(
-                    text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}"
-                )
+    def update_scores(self):
+        self.left_score_label.config(text=str(self.logic.game_mode.p1_score))
+        self.right_score_label.config(text=str(self.logic.game_mode.p2_score))
+
+    def draw_line(self, r1, c1, r2, c2, color = "red"):
+        
+        # if color == "cyan":
+        #     highlight = "cyan"
+        # else:
+        #     highlight = "red"
+
+        dr = r2 - r1
+        dc = c2 - c1
+
+        if dr == 0 and abs(dc) == 2:          # Horizontal
+            positions = [(r1, c1), (r1, c1+1), (r1, c1+2)]
+        elif dc == 0 and abs(dr) == 2:        # Vertical
+            positions = [(r1, c1), (r1+1, c1), (r1+2, c1)]
+        elif dr == 2 and dc == 2:             # Diagonal TL-BR
+            positions = [(r1, c1), (r1+1, c1+1), (r1+2, c1+2)]
+        elif dr == 2 and dc == -2:            # Diagonal BL-TR
+            positions = [(r1, c1), (r1+1, c1-1), (r1+2, c1-2)]
+        else:
+            return
+
+        for r, c in positions:
+            self.buttons[r][c].config(bg=color)
+    
+    def locateSOS(self, color):
+        size = self.logic.game_mode.size
+        board = self.logic.game_mode.board
+        if self.controller.mode == "simple":
+            # Horizontal Check
+            for r in range(size):          # for each row
+                for c in range(size - 2):  # stop 2 before the end
+                    if board[r][c] == "S" and \
+                    board[r][c+1] == "O" and \
+                    board[r][c+2] == "S":
+                        self.draw_line(r, c, r, c+2, color)
+
+            # Vertical Check
+            for c in range(size):          # for each column
+                for r in range(size - 2): # stop 2 before the end
+                    if board[r][c] == "S" and \
+                    board[r+1][c] == "O" and \
+                    board[r+2][c] == "S":
+                        self.draw_line(r, c, r+2, c, color)
+
+            # Diagonal Check (\ - Top Left to Bottom Right)
+            for r in range(size - 2):          # for each row
+                for c in range(size - 2):  # stop 2 before the end
+                    if board[r][c] == "S" and \
+                    board[r+1][c+1] == "O" and \
+                    board[r+2][c+2] == "S":
+                        self.draw_line(r, c, r+2, c+2, color)
+
+            # Diagonal Check (/ - Bottom Left to Top Right)
+            for r in range(size - 2):          # for each row
+                for c in range(2, size):  # stop 2 before the end
+                    if board[r][c] == "S" and \
+                    board[r+1][c-1] == "O" and \
+                    board[r+2][c-2] == "S":
+                        self.draw_line(r, c, r+2, c-2, color)
+
+
 
 class SOSApp(tk.Tk):
     def __init__(self):
@@ -230,4 +324,3 @@ class SOSApp(tk.Tk):
 if __name__ == "__main__":
     app = SOSApp()
     app.mainloop()
-

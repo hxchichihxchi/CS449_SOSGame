@@ -89,6 +89,8 @@ class GeneralGame():
         self.current_player = "p1"
         self.board = [["" for _ in range(size)] for _ in range(size)]
         self.found = set()  # Records old SOS sequences
+        self.p1_score = 0
+        self.p2_score = 0
 
     def place_letter(self, row, col, letter):
         # Places letter on the board if empty.
@@ -157,7 +159,11 @@ class GeneralGame():
                         print("Diagonal BL-TR SOS Found")
                         self.found.add(sos_id)
                         count += 1
-
+        if count > 0:
+            if self.current_player == "p1":
+                self.p1_score += count
+            else:
+                self.p2_score += count
         return count
     
     def gameOver(self):
