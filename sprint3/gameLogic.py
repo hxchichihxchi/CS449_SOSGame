@@ -1,10 +1,18 @@
 class GameLogic:
-    def __init__(self, size, mode):
+    def __init__(self, size, mode="simple"):
         # Added for sizing tests
+        if not isinstance(size, int) or size < 3 or size > 15:
+            raise ValueError("Board size must be between 3 and 15")
+        self.size = size
+        self.mode = mode
+        self.board = [["" for _ in range(size)] for _ in range(size)]
+
         if mode == 'simple':
             self.game_mode = SimpleGame(size)
-        else:
+        elif mode == 'general':
             self.game_mode = GeneralGame(size)
+        else:
+            raise ValueError("Invalid Mode")
 
     def place_letter(self, row, col, letter):
         # Places letter on the board if empty.
@@ -28,11 +36,15 @@ class SimpleGame():
         self.board = [["" for _ in range(size)] for _ in range(size)]
 
     def place_letter(self, row, col, letter):
-        # Places letter on the board if empty.
         if self.board[row][col] == "":
             self.board[row][col] = letter
-            return True
-        return False
+            sos_found = 1 if self.sosCheck() else 0
+            winner = self.get_current_player() if sos_found else None
+            board_full = all(cell != "" for row in self.board for cell in row)
+            if not winner:
+                self.switch_turn()
+            return {"valid": True, "sos_found": sos_found, "game_over": winner is not None or board_full, "winner": winner}
+        return {"valid": False, "sos_found": 0, "game_over": False, "winner": None}
 
     def switch_turn(self):
         # Player Turn Switching
@@ -93,11 +105,25 @@ class GeneralGame():
         self.p2_score = 0
 
     def place_letter(self, row, col, letter):
-        # Places letter on the board if empty.
-        if self.board[row][col] == "":
-            self.board[row][col] = letter
-            return True
-        return False
+        if self.board[row][col] != "":
+            return {"valid": False, "sos_found": 0, "game_over": False, "winner": None}
+        
+        self.board[row][col] = letter
+        sos_count = self.sosCheck()
+
+        if self.get_current_player() == "p1":
+            self.p1_score += sos_count
+        else:
+            self.p2_score += sos_count
+
+        board_full = all(cell != "" for row in self.board for cell in row)
+
+        if sos_count == 0:
+            self.switch_turn()
+
+        game_over = board_full
+        return {"valid": True, "sos_found": sos_count, "game_over": game_over, "winner": None}
+
 
     def switch_turn(self):
         # Player Turn Switching
@@ -108,7 +134,7 @@ class GeneralGame():
 
     def get_current_player(self):
         return self.current_player
-    
+
     def sosCheck(self):
         # Return True when first SOS is formed
         # Horizontal Check
@@ -159,13 +185,8 @@ class GeneralGame():
                         print("Diagonal BL-TR SOS Found")
                         self.found.add(sos_id)
                         count += 1
-        if count > 0:
-            if self.current_player == "p1":
-                self.p1_score += count
-            else:
-                self.p2_score += count
         return count
-    
+
     def gameOver(self):
         sos_count = self.sosCheck()
         board_full = all(cell != "" for row in self.board for cell in row)

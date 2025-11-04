@@ -115,6 +115,10 @@ class GamePage(tk.Frame):
         self.turn_label.grid(row=0, column=0, sticky="n")
         self.bottom_frame.grid_columnconfigure(0, weight=1)
 
+        # New Game Button
+        self.new_game_btn = tk.Button(self.bottom_frame, text="New Game", font=("Arial", 16), command=self.new_game)
+        self.new_game_btn.grid(row=1, column=0, pady=(10,0))
+
         # Canvas
         self.canvas = None
         self.btn_pixel = 0
@@ -157,73 +161,63 @@ class GamePage(tk.Frame):
                 btn.place(x=c*self.btn_pixel, y=r*self.btn_pixel, width=self.btn_pixel, height=self.btn_pixel)
                 btn.config(command=lambda b=btn, r=r, c=c: self.handle_click(b, r, c))
                 self.buttons[r][c] = btn
+    
+    def new_game(self):
+        # Clear the board
+        for widget in self.board_frame.winfo_children():
+            widget.destroy()
+        # Reset turn label
+        self.turn_label.config(text="Current Turn: P1")
+        # Reset scores
+        self.left_score_label.config(text="0")
+        self.right_score_label.config(text="0")
+
+        # Go back to the menu
+        self.controller.show_frame("MenuPage")
+
 
     def handle_click(self, btn, row, col):
-        # Determine letter for current player
         if self.logic.get_current_player() == "p1":
             letter = self.left_choice.get()
-            line_color = "cyan"
         else:
-            letter = self.right_choice.get()
-            line_color = "red"
+            letter =self.right_choice.get()
+        
+        result = self.logic.place_letter(row, col, letter)
+        if not result["valid"]:
+            return
+        
+        btn.config(text=letter, state="disabled", disabledforeground="black")
 
-        # Place the letter
-        if self.logic.place_letter(row, col, letter):
-            btn.config(text=letter, state="disabled", disabledforeground="black")
-
-            if self.controller.mode == "simple":
-                # Simple mode ends immediately on first SOS
-                board_full = all(cell != "" for row in self.logic.game_mode.board for cell in row)
-                if self.logic.gameOver():
-                    print("SOS found! Game Over")
-                    self.locateSOS(line_color)
-                    # Disables all buttons
-                    for widget in self.board_frame.winfo_children():
-                        widget.config(state="disabled")
-                    if self.logic.get_current_player() == "p1":
-                        self.turn_label.config(text= "P1 Wins!")
-                    else:
-                        self.turn_label.config(text= "P2 Wins!")
-                    return
-                elif board_full:
+        if result["sos_found"] > 0:
+            self.update_scores()
+            #self.locateSOS(color)
+        
+        if result["game_over"]:
+            for widget in self.board_frame.winfo_children():
+                widget.config(state="disabled")
+            if result["winner"]:
+                self.turn_label.config(text=f"{result['winner'].upper()} Wins!")
+            else:
+                p1_score = self.logic.game_mode.p1_score
+                p2_score = self.logic.game_mode.p2_score
+                if p1_score > p2_score:
+                    self.turn_label.config(text="P1 Wins!")
+                if p1_score < p2_score:
+                    self.turn_label.config(text="P2 Wins!")
+                else:
                     self.turn_label.config(text="Draw!")
-                    for widget in self.board_frame.winfo_children():
-                        widget.config(state="disabled")  
-                    return                    
-                else:
-                    self.logic.switch_turn()
-                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
+        else:
+            if self.logic.get_current_player() == "p1":
+                current = "P1"
+            else:
+                current = "P2"
+            self.turn_label.config(text=f"Current Turn: {current}")
 
-
-
-            elif self.controller.mode == "general":
-                board_full, sos_count = self.logic.gameOver()
-
-                if sos_count > 0:
-                    print(f"{sos_count} SOS found! Add points to current player.")
-                    # player keeps turn, so no switch
-                    self.update_scores()
-                else:
-                    self.logic.switch_turn()  # switch only if no SOS
-
-                if board_full:
-                    print("Game Over - Board full")
-                    for widget in self.board_frame.winfo_children():
-                        widget.config(state="disabled")
-                    if self.logic.game_mode.p1_score > self.logic.game_mode.p2_score:
-                        self.turn_label.config(text="P1 Wins!")
-                    elif self.logic.game_mode.p1_score < self.logic.game_mode.p2_score:
-                        self.turn_label.config(text="P2 Wins!")
-                    else:
-                        self.turn_label.config(text="Draw!")
-                    return
-                else:
-                    # ALWAYS update turn label, regardless of SOS
-                    self.turn_label.config(text=f"Current Turn: {'P1' if self.logic.get_current_player() == 'p1' else 'P2'}")
 
     def update_scores(self):
-        self.left_score_label.config(text=str(self.logic.game_mode.p1_score))
-        self.right_score_label.config(text=str(self.logic.game_mode.p2_score))
+        if self.controller.mode == "general":
+            self.left_score_label.config(text=str(self.logic.game_mode.p1_score))
+            self.right_score_label.config(text=str(self.logic.game_mode.p2_score))
 
     def draw_line(self, r1, c1, r2, c2, color = "red"):
         
