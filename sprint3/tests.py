@@ -105,11 +105,14 @@ class TestSOSGame(unittest.TestCase):
         """AC 5.2 Test tie condition in simple mode (board full)."""
         logic = GameLogic(3, "simple")
         logic.game_mode.board = [
-            ["S", "S", "O"],
+            ["O", "O", "O"],
             ["O", "O", "S"],
-            ["S", "O", "S"]
+            ["S", "S", ""]  # One empty cell
         ]
-        self.assertTrue(logic.game_mode.gameOver())
+        logic.game_mode.current_player = "p1"
+        result = logic.place_letter(2, 2, "O")  # Fill last cell
+        self.assertTrue(result["game_over"])
+        self.assertEqual(result["winner"], "draw")
 
     def test_general_game_scoring_extra_turn(self): 
         """AC 6.3 Test that a player gets an extra turn after forming SOS in general mode."""
@@ -159,8 +162,8 @@ class TestSOSGame(unittest.TestCase):
         logic.game_mode.p1_score = 3
         logic.game_mode.p2_score = 2
         self.assertTrue(logic.game_mode.gameOver())
-        winner = "p1" if logic.game_mode.p1_score > logic.game_mode.p2_score else "p2" if logic.game_mode.p2_score > logic.game_mode.p1_score else "draw"
-        self.assertEqual(winner, "p1") 
+        result = logic.game_mode.get_winner()
+        self.assertEqual(result, "p1")
 
     def test_general_game_tie_cond(self):
         """AC 7.3 Test tie condition in general mode (scores equal)."""
@@ -173,8 +176,8 @@ class TestSOSGame(unittest.TestCase):
         logic.game_mode.p1_score = 2
         logic.game_mode.p2_score = 2
         self.assertTrue(logic.game_mode.gameOver())
-        winner = "p1" if logic.game_mode.p1_score > logic.game_mode.p2_score else "p2" if logic.game_mode.p2_score > logic.game_mode.p1_score else "draw"
-        self.assertEqual(winner, "draw")
+        result = logic.game_mode.get_winner()
+        self.assertEqual(result, "draw")
     
     def test_simple_highlighting(self):
         """Highlighting in Simple Game"""

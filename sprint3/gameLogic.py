@@ -120,7 +120,7 @@ class GeneralGame():
             return {"valid": False, "sos_found": 0, "game_over": False, "winner": None, "sos_list": []}
 
         self.board[row][col] = letter
-        sos_list = self.sosCheck()  # Only new sequences for this move
+        sos_list = self.sosCheck()
 
         if self.get_current_player() == "p1":
             self.p1_score += len(sos_list)
@@ -128,12 +128,17 @@ class GeneralGame():
             self.p2_score += len(sos_list)
 
         board_full = all(cell != "" for row in self.board for cell in row)
+        
+        # Determine winner if game is over
+        winner = None
+        if board_full:
+            winner = self.get_winner()
 
         if not sos_list:
             self.switch_turn()
 
-        return {"valid": True, "sos_found": len(sos_list), "game_over": board_full, "winner": None, "sos_list": sos_list}
-
+        return {"valid": True, "sos_found": len(sos_list), "game_over": board_full, "winner": winner, "sos_list": sos_list}
+    
     def switch_turn(self):
         self.current_player = "p2" if self.current_player == "p1" else "p1"
 
@@ -175,6 +180,15 @@ class GeneralGame():
                         self.found.add(sos_id)
                         new_sequences.append([(r,c),(r+1,c-1),(r+2,c-2)])
         return new_sequences
+
+    def get_winner(self):
+        """Returns 'p1', 'p2', or 'draw' based on scores."""
+        if self.p1_score > self.p2_score:
+            return "p1"
+        elif self.p2_score > self.p1_score:
+            return "p2"
+        else:
+            return "draw"
 
     def gameOver(self):
         board_full = all(cell != "" for row in self.board for cell in row)
