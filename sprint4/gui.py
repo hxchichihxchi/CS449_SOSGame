@@ -21,11 +21,22 @@ class MenuPage(tk.Frame):
 
         self.selected_option = tk.StringVar(value="simple")
         tk.Radiobutton(inner_frame, text="Simple Game", variable=self.selected_option, value="simple", fg="white").pack(pady=5)
-        tk.Radiobutton(inner_frame, text="General Game", variable=self.selected_option, value="general", fg="white").pack(pady=5)
+        tk.Radiobutton(inner_frame, text="General Game", variable=self.selected_option, value="general", fg="white").pack()
 
         tk.Label(inner_frame, text="Enter Grid Size (e.g., 3, 5, 7):", font=(DEF_FONT, 10), fg="white").pack(pady=(20, 5))
         self.entry = tk.Entry(inner_frame, width=10, font=(DEF_FONT, 10))
         self.entry.pack(pady=5)
+
+        tk.Label(inner_frame, text="CPU Player Toggle", font=(DEF_FONT, 10), fg="white").pack()
+        
+        # Default to Disabled
+        self.cpu1_toggle = tk.IntVar(value=0)
+        self.cpu2_toggle = tk.IntVar(value=0)
+
+        self.cpu_p1 = tk.Checkbutton(inner_frame, text="P1", font=(DEF_FONT, 10), fg="white", variable=self.cpu1_toggle)
+        self.cpu_p1.pack()
+        self.cpu_p2 = tk.Checkbutton(inner_frame, text="P2", font=(DEF_FONT, 10), fg="white", variable=self.cpu2_toggle)
+        self.cpu_p2.pack()
 
         tk.Button(inner_frame, text="Start Game", command=self.start_game).pack(pady=10)
 
@@ -49,7 +60,13 @@ class MenuPage(tk.Frame):
 
             self.controller.grid_size = size
             self.controller.mode = mode
+
+            self.controller.p1_cpu_toggle = self.cpu1_toggle.get()
+            self.controller.p2_cpu_toggle = self.cpu2_toggle.get()
+
             self.controller.show_frame("GamePage")
+            print(f"CPU Toggles - P1:{self.controller.p1_cpu_toggle} P2:{self.controller.p2_cpu_toggle}")
+
         except ValueError:
             self.alert_label.config(text="Gameboard dimensions must be size 3-15.")
 
@@ -95,21 +112,23 @@ class GamePage(tk.Frame):
         tk.Radiobutton(parent, text="S", variable=selection, value="S", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
         tk.Radiobutton(parent, text="O", variable=selection, value="O", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
 
-        return score_label, selection
+        cpu_label = tk.Label(parent, text="[CPU]", fg=player_color, font=(DEF_FONT, DEF_FONT_SIZE))
+
+        return score_label, selection, cpu_label
     
     # Left panel
     def _left_panel(self):
         self.left_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.left_frame.grid(row=0, column=0, sticky="ns")
 
-        self.left_score_label, self.left_choice = self._player_widgets(parent = self.left_frame, player_name="P1", player_color=P1_COLOR)
+        self.left_score_label, self.left_choice, self.left_cpu_label = self._player_widgets(parent = self.left_frame, player_name="P1", player_color=P1_COLOR)
 
     # Right panel
     def _right_panel(self):
         self.right_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.right_frame.grid(row=0, column=2, sticky="ns")
 
-        self.right_score_label, self.right_choice = self._player_widgets(parent = self.right_frame, player_name="P2", player_color=P2_COLOR)
+        self.right_score_label, self.right_choice, self.right_cpu_label = self._player_widgets(parent = self.right_frame, player_name="P2", player_color=P2_COLOR)
 
     # Board wrapper
     def _board_panel(self):
@@ -132,7 +151,7 @@ class GamePage(tk.Frame):
 
         self.turn_label = tk.Label(self.bottom_frame, text="Current Turn: P1", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
         self.turn_label.grid(row=0, column=0, sticky="n")
-        
+
         self.bottom_frame.grid_columnconfigure(0, weight=1)
         self.new_game_btn = tk.Button(self.bottom_frame, text="New Game", font=(DEF_FONT, DEF_FONT_SIZE), command=self.new_game)
         self.new_game_btn.grid(row=1, column=0, pady=(10, 0))
@@ -151,7 +170,22 @@ class GamePage(tk.Frame):
         else:
             self.left_score_label.pack_forget()
             self.right_score_label.pack_forget()
+    
+    def cpu_label_visibility(self):
+        if self.controller.p1_cpu_toggle == 1:
+            print("CPU P1: Enabled")
+            self.left_cpu_label.pack()
+        else:
+            print("CPU P1: Disabled")
+            self.left_cpu_label.pack_forget()
 
+        if self.controller.p2_cpu_toggle == 1:
+            print("CPU P2: Enabled")
+            self.right_cpu_label.pack()
+        else:
+            print("CPU P2: Disabled")
+            self.right_cpu_label.pack_forget()
+  
     def create_board(self):
         for widget in self.board_frame.winfo_children():
             widget.destroy()
@@ -174,8 +208,10 @@ class GamePage(tk.Frame):
         for widget in self.board_frame.winfo_children():
             widget.destroy()
         self.turn_label.config(text="Current Turn: P1")
+
         self.left_score_label.config(text="0")
         self.right_score_label.config(text="0")
+
         self.controller.show_frame("MenuPage")
 
     def handle_click(self, row, col):
@@ -281,6 +317,8 @@ class SOSApp(tk.Tk):
 
         self.grid_size = None
         self.mode = None
+        self.cpu1_toggle = None
+        self.cpu2_toggle = None
 
         container = tk.Frame(self)
         container.pack(expand=True, fill="both")
@@ -304,6 +342,7 @@ class SOSApp(tk.Tk):
             frame.set_logic(self.logic)
             frame.update_mode_label()
             frame.update_score_visibility()
+            frame.cpu_label_visibility()
             frame.create_board()
 
 if __name__ == "__main__":

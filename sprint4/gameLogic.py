@@ -1,9 +1,11 @@
 class GameLogic:
     """ Defines mode and method calls """
-    def __init__(self, size, mode="simple"):
+    def __init__(self, size, mode="simple", p1_cpu_toggle=0, p2_cpu_toggle=0):
         if not isinstance(size, int) or size < 3 or size > 15:
             raise ValueError("Board size must be between 3 and 15")
         self.mode = mode
+        self.p1_cpu_toggle = p1_cpu_toggle
+        self.p2_cpu_toggle = p2_cpu_toggle
 
         if mode == 'simple':
             self.game_mode = SimpleGame(size)
