@@ -21,8 +21,8 @@ class GameLogic:
     def get_current_player(self):
         return self.game_mode.get_current_player()
 
-    def gameOver(self):
-        return self.game_mode.gameOver()
+    def game_over(self):
+        return self.game_mode.game_over()
     
     def get_scores(self):
         """Get scores for general game mode."""
@@ -50,7 +50,7 @@ class BaseGame:
     def get_current_player(self):
         return self._current_player
     
-    def _sosCheck(self):
+    def _sos_check(self):
         sos_list = []
         # Horizontal
         for r in range(self._size):
@@ -107,8 +107,8 @@ class SimpleGame(BaseGame):
     def place_letter(self, row, col, letter):
         if self.is_valid_move(row, col):
             self.update_board(row, col, letter)
-            sos_list = self.sosCheck()
-            board_full = all(cell != "" for row in self._board for cell in row)
+            sos_list = self.sos_check()
+            board_full = all(cell != "" for board_row in self._board for cell in board_row)
 
             winner = None
             if sos_list:
@@ -128,10 +128,10 @@ class SimpleGame(BaseGame):
             }
         return {"valid": False, "sos_found": 0, "game_over": False, "winner": None, "sos_list": []}
 
-    def sosCheck(self):
-        return self._sosCheck()
+    def sos_check(self):
+        return self._sos_check()
 
-    def gameOver(self):
+    def game_over(self):
         # SOS Found; True, game ends.
         return bool(self._found)
 
@@ -150,14 +150,14 @@ class GeneralGame(BaseGame):
             return {"valid": False, "sos_found": 0, "game_over": False, "winner": None, "sos_list": []}
 
         self._board[row][col] = letter
-        sos_list = self.sosCheck()
+        sos_list = self.sos_check()
 
         if self.get_current_player() == "p1":
             self._p1_score += len(sos_list)
         else:
             self._p2_score += len(sos_list)
 
-        board_full = all(cell != "" for row in self._board for cell in row)
+        board_full = all(cell != "" for board_row in self._board for cell in board_row)
         
         # Determine winner if game is over
         winner = None
@@ -169,8 +169,8 @@ class GeneralGame(BaseGame):
 
         return {"valid": True, "sos_found": len(sos_list), "game_over": board_full, "winner": winner, "sos_list": sos_list}
 
-    def sosCheck(self):
-        return self._sosCheck()
+    def sos_check(self):
+        return self._sos_check()
 
     def get_winner(self):
         """Returns 'p1', 'p2', or 'draw' based on scores."""
@@ -181,9 +181,9 @@ class GeneralGame(BaseGame):
         else:
             return "draw"
 
-    def gameOver(self):
+    def game_over(self):
         # False: nothing, True: Game Ends
-        return all(cell != "" for row in self._board for cell in row)
+        return all(cell != "" for board_row in self._board for cell in board_row)
 
 # Debugging for refactor
 if __name__ == "__main__":
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     print("Placing S at (0,2):", game.place_letter(0, 2, "S"))
 
     print("Current player:", game.get_current_player())
-    print("Is game over?", game.gameOver())
+    print("Is game over?", game.game_over())
 
     # General Mode Test
     print("\n=== General Mode Test ===")
@@ -209,5 +209,5 @@ if __name__ == "__main__":
     print("Placing S at (0,2):", game.place_letter(0, 2, "S"))
 
     print("Current player:", game.get_current_player())
-    print("Is game over?", game.gameOver())
+    print("Is game over?", game.game_over())
     print("Scores -> P1:", game.game_mode._p1_score, "P2:", game.game_mode._p2_score)

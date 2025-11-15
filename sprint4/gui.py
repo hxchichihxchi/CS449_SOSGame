@@ -1,6 +1,9 @@
 import tkinter as tk
 from gameLogic import GameLogic
 
+DEF_FONT_SIZE = 20
+DEF_FONT = "Arial"
+
 class MenuPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -14,20 +17,20 @@ class MenuPage(tk.Frame):
         inner_frame.place(relx=0.5, rely=0.5, anchor="center")
 
         # Widgets
-        tk.Label(inner_frame, text="SOS Game", font=("Arial", 24), fg="white").pack(pady=(0, 20))
+        tk.Label(inner_frame, text="SOS Game", font=(DEF_FONT, DEF_FONT_SIZE), fg="white").pack(pady=(0, 20))
 
         self.selected_option = tk.StringVar(value="simple")
         tk.Radiobutton(inner_frame, text="Simple Game", variable=self.selected_option, value="simple", fg="white").pack(pady=5)
         tk.Radiobutton(inner_frame, text="General Game", variable=self.selected_option, value="general", fg="white").pack(pady=5)
 
-        tk.Label(inner_frame, text="Enter Grid Size (e.g., 3, 5, 7):", font=("Arial", 16), fg="white").pack(pady=(20, 5))
-        self.entry = tk.Entry(inner_frame, width=10, font=("Arial", 14))
+        tk.Label(inner_frame, text="Enter Grid Size (e.g., 3, 5, 7):", font=(DEF_FONT, 10), fg="white").pack(pady=(20, 5))
+        self.entry = tk.Entry(inner_frame, width=10, font=(DEF_FONT, 10))
         self.entry.pack(pady=5)
 
         tk.Button(inner_frame, text="Start Game", command=self.start_game).pack(pady=10)
 
         # Alerts for invalid user-input parameters
-        self.alert_label = tk.Label(inner_frame, text="", font=("Arial", 10), fg="white")
+        self.alert_label = tk.Label(inner_frame, text="", font=(DEF_FONT, 10), fg="white")
         self.alert_label.pack(pady=(20, 5))
 
     def start_game(self):
@@ -50,72 +53,90 @@ class MenuPage(tk.Frame):
         except ValueError:
             self.alert_label.config(text="Gameboard dimensions must be size 3-15.")
 
+PANEL_WIDTH = 200
+BOARD_SIZE = 600
+SCORE_SIZE = 72
+P1_COLOR = "cyan"
+P2_COLOR = "red"
+
 class GamePage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
 
-        main_container = tk.Frame(self)
-        main_container.pack(expand=True, fill="both")
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=0)
-        main_container.grid_columnconfigure(1, weight=1)
-        main_container.grid_columnconfigure(2, weight=0)
+        self.btn_pixel = 0
+        self.labels = []
 
-        # Left panel
-        self.left_frame = tk.Frame(main_container, width=200)
+        self._main_layout()
+        self._left_panel()
+        self._board_panel()
+        self._right_panel()
+        self._bottom_panel()
+
+    def _main_layout(self):
+        self.main_container = tk.Frame(self)
+        self.main_container.pack(expand=True, fill="both")
+        self.main_container.grid_rowconfigure(0, weight=1)
+        self.main_container.grid_columnconfigure(0, weight=0)
+        self.main_container.grid_columnconfigure(1, weight=1)
+        self.main_container.grid_columnconfigure(2, weight=0)
+
+    # P1/P2 Widgets
+    def _player_widgets(self, parent, player_name, player_color):
+        # Score/Points
+        score_label = tk.Label(parent, text="0", fg=player_color, font=(DEF_FONT, SCORE_SIZE))
+        score_label.pack(padx=10)
+
+        # Player Label for UI
+        tk.Label(parent, text=player_name, fg=player_color, font=(DEF_FONT, DEF_FONT_SIZE)).pack(padx=10)
+
+        # S/O Selection
+        selection = tk.StringVar(value = "S")   # Defaults to S
+        tk.Radiobutton(parent, text="S", variable=selection, value="S", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
+        tk.Radiobutton(parent, text="O", variable=selection, value="O", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
+
+        return score_label, selection
+    
+    # Left panel
+    def _left_panel(self):
+        self.left_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.left_frame.grid(row=0, column=0, sticky="ns")
 
-        self.left_score_label = tk.Label(self.left_frame, text="0", fg="cyan", font=("Arial", 72))
-        self.left_score_label.pack(padx=10)
-        self.left_choice = tk.StringVar(value="S")
-        self.left_name_label = tk.Label(self.left_frame, text="P1", fg="cyan", font=("Arial", 20)).pack(padx=10)
-        tk.Radiobutton(self.left_frame, text="S", variable=self.left_choice, value="S", fg="white", font=("Arial", 20)).pack(pady=5)
-        tk.Radiobutton(self.left_frame, text="O", variable=self.left_choice, value="O", fg="white", font=("Arial", 20)).pack(pady=5)
-        
-        # Computer Toggle
-        self.left_computer = tk.StringVar(value="cpu")
-        tk.Radiobutton(self.left_frame, text="CPU", variable=self.left_computer, value="CPU", fg="white", font=("Arial", 20)).pack(pady=5)
+        self.left_score_label, self.left_choice = self._player_widgets(parent = self.left_frame, player_name="P1", player_color=P1_COLOR)
 
-        # Board wrapper
-        self.board_wrapper = tk.Frame(main_container)
+    # Right panel
+    def _right_panel(self):
+        self.right_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
+        self.right_frame.grid(row=0, column=2, sticky="ns")
+
+        self.right_score_label, self.right_choice = self._player_widgets(parent = self.right_frame, player_name="P2", player_color=P2_COLOR)
+
+    # Board wrapper
+    def _board_panel(self):
+        self.board_wrapper = tk.Frame(self.main_container)
         self.board_wrapper.grid(row=0, column=1, sticky="nsew")
         self.board_wrapper.grid_rowconfigure(1, weight=1)
         self.board_wrapper.grid_columnconfigure(0, weight=1)
 
-        self.mode_label = tk.Label(self.board_wrapper, text="", fg="white", font=("Arial", 20))
+        self.mode_label = tk.Label(self.board_wrapper, text="", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
         self.mode_label.grid(row=0, column=0, pady=10)
 
-        self.board_frame = tk.Frame(self.board_wrapper, width=600, height=600)
+        self.board_frame = tk.Frame(self.board_wrapper, width=BOARD_SIZE, height=BOARD_SIZE)
         self.board_frame.grid(row=1, column=0)
         self.board_frame.grid_propagate(False)
 
-        # Right panel
-        self.right_frame = tk.Frame(main_container, width=200)
-        self.right_frame.grid(row=0, column=2, sticky="ns")
-
-        self.right_score_label = tk.Label(self.right_frame, text="0", fg="red", font=("Arial", 72))
-        self.right_score_label.pack(padx=10)
-        self.right_choice = tk.StringVar(value="S")
-        tk.Label(self.right_frame, text="P2", fg="red", font=("Arial", 20)).pack(padx=10)
-        tk.Radiobutton(self.right_frame, text="S", variable=self.right_choice, value="S", fg="white", font=("Arial", 20)).pack(pady=5)
-        tk.Radiobutton(self.right_frame, text="O", variable=self.right_choice, value="O", fg="white", font=("Arial", 20)).pack(pady=5)
-
-        # Computer Toggle
-        self.right_computer = tk.StringVar(value="cpu")
-        tk.Radiobutton(self.right_frame, text="CPU", variable=self.right_computer, value="CPU", fg="white", font=("Arial", 20)).pack(pady=5)
-
-        # Bottom Frame
-        self.bottom_frame = tk.Frame(main_container, width=200)
+    # Bottom Frame
+    def _bottom_panel(self):
+        self.bottom_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.bottom_frame.grid(row=1, column=1, sticky="nsew")
-        self.turn_label = tk.Label(self.bottom_frame, text="Current Turn: P1", fg="white", font=("Arial", 20))
+
+        self.turn_label = tk.Label(self.bottom_frame, text="Current Turn: P1", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
         self.turn_label.grid(row=0, column=0, sticky="n")
+        
         self.bottom_frame.grid_columnconfigure(0, weight=1)
-        self.new_game_btn = tk.Button(self.bottom_frame, text="New Game", font=("Arial", 16), command=self.new_game)
+        self.new_game_btn = tk.Button(self.bottom_frame, text="New Game", font=(DEF_FONT, DEF_FONT_SIZE), command=self.new_game)
         self.new_game_btn.grid(row=1, column=0, pady=(10, 0))
 
-        self.btn_pixel = 0
-        self.labels = []
 
     def set_logic(self, logic):
         self.logic = logic
@@ -136,7 +157,7 @@ class GamePage(tk.Frame):
             widget.destroy()
 
         size = self.controller.grid_size
-        board_pixel = 600
+        board_pixel = BOARD_SIZE
         self.btn_pixel = board_pixel // size
 
         self.labels = [[None for _ in range(size)] for _ in range(size)]
@@ -191,7 +212,7 @@ class GamePage(tk.Frame):
             self._update_turn_label()
 
     def _draw_sos_sequences(self, sos_list):
-        color = "cyan" if self.logic.get_current_player() == "p1" else "red"
+        color = P1_COLOR if self.logic.get_current_player() == "p1" else P2_COLOR
         for sequence in sos_list:
             r1, c1 = sequence[0]
             r2, c2 = sequence[2]
@@ -216,10 +237,8 @@ class GamePage(tk.Frame):
         else:
             scores = self.logic.get_scores()
             if scores["p1"] > scores["p2"]:
-                self.turn_label.config(fg="cyan")
                 return "P1 Wins!"
             elif scores["p1"] < scores["p2"]:
-                self.turn_label.config(fg="red")
                 return "P2 Wins!"
             else:
                 return "Draw!"
