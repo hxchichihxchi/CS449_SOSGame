@@ -1,3 +1,5 @@
+import random
+
 class GameLogic:
     """ Defines mode and method calls """
     def __init__(self, size, mode="simple", p1_cpu_toggle=0, p2_cpu_toggle=0):
@@ -8,14 +10,17 @@ class GameLogic:
         self.p2_cpu_toggle = p2_cpu_toggle
 
         if mode == 'simple':
-            self.game_mode = SimpleGame(size)
+            self.game_mode = SimpleGame(size, p1_cpu_toggle, p2_cpu_toggle)
         elif mode == 'general':
-            self.game_mode = GeneralGame(size)
+            self.game_mode = GeneralGame(size, p1_cpu_toggle, p2_cpu_toggle)
         else:
             raise ValueError("Invalid Mode")
 
     def place_letter(self, row, col, letter):
         return self.game_mode.place_letter(row, col, letter)
+    
+    def cpu_check(self):
+        return self.game_mode.cpu_check()
 
     def switch_turn(self):
         self.game_mode.switch_turn()
@@ -34,11 +39,13 @@ class GameLogic:
     
 class BaseGame:
     """ Delegated to shared attributes and methods """
-    def __init__(self, size):
+    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
         self._size = size
         self._board = [["" for _ in range(size)] for _ in range(size)]
         self._current_player = "p1"
         self._found = set()
+        self._p1_cpu_toggle = p1_cpu_toggle
+        self._p2_cpu_toggle = p2_cpu_toggle
     
     def get_board(self):
         return self._board
@@ -92,6 +99,22 @@ class BaseGame:
 
         return sos_list
     
+    def cpu_check(self):
+        print(f"cpu_check called. P1 toggle: {self._p1_cpu_toggle}, P2 toggle: {self._p2_cpu_toggle}, Current: {self.get_current_player()}")
+        if (self.get_current_player() == "p1" and self._p1_cpu_toggle == 1) or (self.get_current_player() == "p2" and self._p2_cpu_toggle == 1):
+            return self._cpu_move()
+        return None
+        
+    def _cpu_move(self):
+        """CPU plays random valid spot with random S/O selection"""
+        board = self.get_board()
+        letter = "S" if random.randint(0,1) == 0 else "O"
+        while True:
+            r = random.randint(0, self.get_size()-1)
+            c = random.randint(0, self.get_size()-1)
+            if board[r][c] == "":
+                return (r,c,letter)
+
     def is_valid_move(self, row, col):
         """Return True if the cell at (row, col) is empty."""
         return self._board[row][col] == ""
@@ -103,8 +126,8 @@ class BaseGame:
 """ SimpleGame and GeneralGame Classes delegated to define rulesets """
 
 class SimpleGame(BaseGame):
-    def __init__(self, size):
-        super().__init__(size)  # Referenes BaseGame/shared parameters
+    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
+        super().__init__(size, p1_cpu_toggle, p2_cpu_toggle)  # Referenes BaseGame/shared parameters
 
     def place_letter(self, row, col, letter):
         if self.is_valid_move(row, col):
@@ -138,8 +161,8 @@ class SimpleGame(BaseGame):
         return bool(self._found)
 
 class GeneralGame(BaseGame):
-    def __init__(self, size):
-        super().__init__(size)  # Referenes BaseGame/shared parameters
+    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
+        super().__init__(size, p1_cpu_toggle, p2_cpu_toggle)  # Referenes BaseGame/shared parameters
 
         self._p1_score = 0
         self._p2_score = 0

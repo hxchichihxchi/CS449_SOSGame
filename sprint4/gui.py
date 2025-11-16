@@ -80,6 +80,7 @@ class GamePage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.game_active = False
 
         self.btn_pixel = 0
         self.labels = []
@@ -109,26 +110,26 @@ class GamePage(tk.Frame):
 
         # S/O Selection
         selection = tk.StringVar(value = "S")   # Defaults to S
-        tk.Radiobutton(parent, text="S", variable=selection, value="S", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
-        tk.Radiobutton(parent, text="O", variable=selection, value="O", fg="white", font=(DEF_FONT, DEF_FONT_SIZE)).pack(pady=5)
+        s_button = tk.Radiobutton(parent, text="S", variable=selection, value="S", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
+        o_button = tk.Radiobutton(parent, text="O", variable=selection, value="O", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
 
         cpu_label = tk.Label(parent, text="[CPU]", fg=player_color, font=(DEF_FONT, DEF_FONT_SIZE))
 
-        return score_label, selection, cpu_label
+        return score_label, selection, cpu_label, s_button, o_button
     
     # Left panel
     def _left_panel(self):
         self.left_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.left_frame.grid(row=0, column=0, sticky="ns")
 
-        self.left_score_label, self.left_choice, self.left_cpu_label = self._player_widgets(parent = self.left_frame, player_name="P1", player_color=P1_COLOR)
+        self.left_score_label, self.left_choice, self.left_cpu_label, self.left_s_button, self.left_o_button = self._player_widgets(parent = self.left_frame, player_name="P1", player_color=P1_COLOR)
 
     # Right panel
     def _right_panel(self):
         self.right_frame = tk.Frame(self.main_container, width=PANEL_WIDTH)
         self.right_frame.grid(row=0, column=2, sticky="ns")
 
-        self.right_score_label, self.right_choice, self.right_cpu_label = self._player_widgets(parent = self.right_frame, player_name="P2", player_color=P2_COLOR)
+        self.right_score_label, self.right_choice, self.right_cpu_label, self.right_s_button, self.right_o_button = self._player_widgets(parent = self.right_frame, player_name="P2", player_color=P2_COLOR)
 
     # Board wrapper
     def _board_panel(self):
@@ -171,20 +172,31 @@ class GamePage(tk.Frame):
             self.left_score_label.pack_forget()
             self.right_score_label.pack_forget()
     
-    def cpu_label_visibility(self):
+    def cpu_visibility(self):
+        """ If CPU for either P1/P2 is enabled, it shows indicator and hides radio buttons.
+            If CPU for either P1/P2 is disabled, it hides CPU indicator, shows radio buttons.
+        """
         if self.controller.p1_cpu_toggle == 1:
-            print("CPU P1: Enabled")
+            print("CPU P1: Enabled, hide P1 S/O selection")
             self.left_cpu_label.pack()
+            self.left_s_button.pack_forget()
+            self.left_o_button.pack_forget()
         else:
             print("CPU P1: Disabled")
             self.left_cpu_label.pack_forget()
+            self.left_s_button.pack(pady=5)
+            self.left_o_button.pack(pady=5)
 
         if self.controller.p2_cpu_toggle == 1:
-            print("CPU P2: Enabled")
+            print("CPU P2: Enabled, hide P2 S/O selection")
             self.right_cpu_label.pack()
+            self.right_s_button.pack_forget()
+            self.right_o_button.pack_forget()
         else:
-            print("CPU P2: Disabled")
+            print("CPU P2: Disabled, show P2 S/O selection")
             self.right_cpu_label.pack_forget()
+            self.right_s_button.pack(pady=5)
+            self.right_o_button.pack(pady=5)
   
     def create_board(self):
         for widget in self.board_frame.winfo_children():
@@ -205,6 +217,7 @@ class GamePage(tk.Frame):
                 self.labels[r][c] = lbl
 
     def new_game(self):
+        self.game_active = False
         for widget in self.board_frame.winfo_children():
             widget.destroy()
         self.turn_label.config(text="Current Turn: P1")
@@ -214,13 +227,13 @@ class GamePage(tk.Frame):
 
         self.controller.show_frame("MenuPage")
 
-    def handle_click(self, row, col):
+    def handle_click(self, row, col, letter=None):
         if not self._is_valid_move(row, col):
             return
-        
-        letter = self._get_player_letter()
+        if letter is None:
+            letter = self._get_player_letter()
+       
         result = self.logic.place_letter(row, col, letter)
-        
         self._update_cell(row, col, letter)
         self._process_result(result)
 
@@ -237,6 +250,16 @@ class GamePage(tk.Frame):
     def _update_cell(self, row, col, letter):
         self.labels[row][col].config(text=letter, fg="black")
 
+    def _cpu_check_and_play(self):
+        if self.game_active == False:
+            return
+        cpu_move = self.logic.cpu_check()
+        if cpu_move:
+            print(f"CPU move result: {cpu_move}")
+            row, col, letter = cpu_move
+            self.handle_click(row, col, letter)
+            self.after(500, self._cpu_check_and_play) # Delay
+
     def _process_result(self, result):
         if result["sos_found"] > 0:
             self._draw_sos_sequences(result["sos_list"])
@@ -246,7 +269,9 @@ class GamePage(tk.Frame):
             self._handle_game_over(result)
         else:
             self._update_turn_label()
-
+            self._cpu_check_and_play()
+            print(f"Checking for CPU... Current player: {self.logic.get_current_player()}")
+            
     def _draw_sos_sequences(self, sos_list):
         color = P1_COLOR if self.logic.get_current_player() == "p1" else P2_COLOR
         for sequence in sos_list:
@@ -255,6 +280,7 @@ class GamePage(tk.Frame):
             self._draw_line(r1, c1, r2, c2, color)
 
     def _handle_game_over(self, result):
+        self.game_active = False
         self._disable_board()
         winner_text = self._get_winner_text(result)
         self.turn_label.config(text=winner_text)
@@ -315,10 +341,11 @@ class SOSApp(tk.Tk):
         self.title("SOS Game")
         self.geometry("900x800")
 
+        # Default values so tests don’t explode
         self.grid_size = None
         self.mode = None
-        self.cpu1_toggle = None
-        self.cpu2_toggle = None
+        self.p1_cpu_toggle = False
+        self.p2_cpu_toggle = False
 
         container = tk.Frame(self)
         container.pack(expand=True, fill="both")
@@ -338,12 +365,19 @@ class SOSApp(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
         if page_name == "GamePage":
-            self.logic = GameLogic(self.grid_size, self.mode)
+            # print(f"About to create logic with: p1={self.p1_cpu_toggle}, p2={self.p2_cpu_toggle}")
+
+            self.logic = GameLogic(self.grid_size, self.mode, self.p1_cpu_toggle, self.p2_cpu_toggle)
             frame.set_logic(self.logic)
             frame.update_mode_label()
             frame.update_score_visibility()
-            frame.cpu_label_visibility()
+            # frame.selection_visibility()
+            frame.cpu_visibility()
             frame.create_board()
+            frame.game_active = True
+
+            # P1 plays first, checks if CPU plays
+            frame._cpu_check_and_play()
 
 if __name__ == "__main__":
     app = SOSApp()

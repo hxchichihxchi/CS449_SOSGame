@@ -160,7 +160,7 @@ class TestSOSGame(unittest.TestCase):
             logic.place_letter(r, c, letter)
         
         # Check game is over
-        self.assertTrue(logic.game_mode.gameOver())
+        self.assertTrue(logic.game_mode.game_over())
         
         # Get winner based on scores
         scores = logic.get_scores()
@@ -184,7 +184,7 @@ class TestSOSGame(unittest.TestCase):
         for r, c, letter in moves:
             logic.place_letter(r, c, letter)
         
-        self.assertTrue(logic.game_mode.gameOver())
+        self.assertTrue(logic.game_mode.game_over())
         result = logic.game_mode.get_winner()
         self.assertEqual(result, "draw")
     
