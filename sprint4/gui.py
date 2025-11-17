@@ -213,7 +213,9 @@ class GamePage(tk.Frame):
                 lbl = tk.Label(self.board_frame, text="", font=("Arial", max(12, self.btn_pixel // 2)),
                                fg="black", bg="white", relief="solid", borderwidth=1)
                 lbl.place(x=c * self.btn_pixel, y=r * self.btn_pixel, width=self.btn_pixel, height=self.btn_pixel)
-                lbl.bind("<Button-1>", lambda e, row=r, col=c: self.handle_click(row, col))
+                # Enables clicking only when it's human turn
+                if self.controller.p1_cpu_toggle == 0 or self.controller.p2_cpu_toggle == 0:
+                    lbl.bind("<Button-1>", lambda e, row=r, col=c: self.handle_click(row, col))
                 self.labels[r][c] = lbl
 
     def new_game(self):
@@ -253,12 +255,16 @@ class GamePage(tk.Frame):
     def _cpu_check_and_play(self):
         if self.game_active == False:
             return
-        cpu_move = self.logic.cpu_check()
+        cpu_move = self.logic.get_cpu_move()
         if cpu_move:
             print(f"CPU move result: {cpu_move}")
             row, col, letter = cpu_move
-            self.handle_click(row, col, letter)
-            self.after(500, self._cpu_check_and_play) # Delay
+            self.after(100, lambda: self._execute_cpu_move(row, col, letter))
+    
+    def _execute_cpu_move(self, row, col, letter):
+        if not self.game_active:
+            return
+        self.handle_click(row, col, letter)
 
     def _process_result(self, result):
         if result["sos_found"] > 0:
@@ -270,7 +276,7 @@ class GamePage(tk.Frame):
         else:
             self._update_turn_label()
             self._cpu_check_and_play()
-            print(f"Checking for CPU... Current player: {self.logic.get_current_player()}")
+            #print(f"Checking for CPU... Current player: {self.logic.get_current_player()}")
             
     def _draw_sos_sequences(self, sos_list):
         color = P1_COLOR if self.logic.get_current_player() == "p1" else P2_COLOR
@@ -365,13 +371,14 @@ class SOSApp(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
         if page_name == "GamePage":
-            # print(f"About to create logic with: p1={self.p1_cpu_toggle}, p2={self.p2_cpu_toggle}")
+           
+            p1_type = "computer" if self.p1_cpu_toggle == 1 else "human"
+            p2_type = "computer" if self.p2_cpu_toggle == 1 else "human"
+            self.logic = GameLogic(self.grid_size, self.mode, p1_type, p2_type)
 
-            self.logic = GameLogic(self.grid_size, self.mode, self.p1_cpu_toggle, self.p2_cpu_toggle)
             frame.set_logic(self.logic)
             frame.update_mode_label()
             frame.update_score_visibility()
-            # frame.selection_visibility()
             frame.cpu_visibility()
             frame.create_board()
             frame.game_active = True

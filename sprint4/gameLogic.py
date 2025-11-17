@@ -1,26 +1,99 @@
 import random
 
+# --- Player Class Hierarchy ---
+class Player:
+    """ Base class for player types """
+    def make_move(self):
+        raise NotImplementedError
+
+class HumanPlayer(Player):
+    """ Human player - moves handled by GUI """
+    def make_move(self):
+        # Human moves come from GUI clicks
+        return None
+
+class ComputerPlayer(Player):
+    def make_move(self, board, size, found):
+        # Try to find a move that completes an SOS
+        sos_move = self._find_sos_completing_move(board, size, found)
+        if sos_move:
+            return sos_move
+        # NO SOS found, play random valid move
+        return self._play_random_move(board, size)
+    
+    def _find_sos_completing_move(self, board, size, found):
+        """
+        Searches for a move that will complete an SOS sequence.
+        For every empty cell, tries placing 'S' and 'O' to see if it creates SOS.
+        """
+        for r in range(size):
+            for c in range(size):
+                if board[r][c] == "":
+                    # Try both letters at this position
+                    for letter in ["S", "O"]:
+                        board[r][c] = letter
+                        if self._check_creates_new_sos(board, size, found):
+                            board[r][c] = ""  # Reset the test
+                            print(f"SOS Candidate found: {letter} at {r},{c}")
+                            return (r, c, letter)
+                        board[r][c] = ""  # Reset the test
+        return None
+    
+    def _check_creates_new_sos(self, board, size, found):
+        """ CPU check using shared pure scanner (prevnets duplication) """
+        all_sos = BaseGame._scan_sos_static(board, size)
+        for sos_id in all_sos:
+            if sos_id not in found:
+                return True
+        return False
+    
+    def _play_random_move(self, board, size):
+        """ Plays random letter in random empty cell if no SOS sequence can be formed """
+        empty_cells = [(r, c) for r in range(size) for c in range(size) if board[r][c] == ""]
+        
+        if empty_cells:
+            r, c = random.choice(empty_cells)
+            letter = random.choice(["S", "O"])
+            print(f"No SOS found, randomly placing {letter} at {r},{c}")
+            return (r, c, letter)
+        return None
+
+# --- Main Game Logic Controller ---
 class GameLogic:
     """ Defines mode and method calls """
-    def __init__(self, size, mode="simple", p1_cpu_toggle=0, p2_cpu_toggle=0):
+    def __init__(self, size, mode="simple", p1_type="human", p2_type="human"):
         if not isinstance(size, int) or size < 3 or size > 15:
             raise ValueError("Board size must be between 3 and 15")
+        
         self.mode = mode
-        self.p1_cpu_toggle = p1_cpu_toggle
-        self.p2_cpu_toggle = p2_cpu_toggle
 
+        # Create player objects based on type
+        self.p1 = HumanPlayer() if p1_type == "human" else ComputerPlayer()
+        self.p2 = HumanPlayer() if p2_type == "human" else ComputerPlayer()
+
+        # Initialize appropriate game mode
         if mode == 'simple':
-            self.game_mode = SimpleGame(size, p1_cpu_toggle, p2_cpu_toggle)
+            self.game_mode = SimpleGame(size)
         elif mode == 'general':
-            self.game_mode = GeneralGame(size, p1_cpu_toggle, p2_cpu_toggle)
+            self.game_mode = GeneralGame(size)
         else:
             raise ValueError("Invalid Mode")
 
     def place_letter(self, row, col, letter):
         return self.game_mode.place_letter(row, col, letter)
     
-    def cpu_check(self):
-        return self.game_mode.cpu_check()
+    def get_cpu_move(self):
+        current_player_name = self.get_current_player()
+        current_player_obj = self.p1 if current_player_name == "p1" else self.p2
+        
+        if isinstance(current_player_obj, ComputerPlayer):
+            return current_player_obj.make_move(
+                self.game_mode.get_board(),
+                self.game_mode.get_size(),
+                self.game_mode.get_found()
+            )
+        
+        return None
 
     def switch_turn(self):
         self.game_mode.switch_turn()
@@ -32,20 +105,16 @@ class GameLogic:
         return self.game_mode.game_over()
     
     def get_scores(self):
-        """Get scores for general game mode."""
-        if hasattr(self.game_mode, 'get_scores'):
-            return self.game_mode.get_scores()
-        return {"p1": 0, "p2": 0}
-    
+        return self.game_mode.get_scores()
+
+# --- Base Game Class ---
 class BaseGame:
     """ Delegated to shared attributes and methods """
-    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
+    def __init__(self, size):
         self._size = size
         self._board = [["" for _ in range(size)] for _ in range(size)]
         self._current_player = "p1"
-        self._found = set()
-        self._p1_cpu_toggle = p1_cpu_toggle
-        self._p2_cpu_toggle = p2_cpu_toggle
+        self._found = set()  # Tracks already found SOS sequences
     
     def get_board(self):
         return self._board
@@ -54,85 +123,81 @@ class BaseGame:
         return self._size
 
     def switch_turn(self):
+        print("Switching Turn")
         self._current_player = "p2" if self._current_player == "p1" else "p1"
 
     def get_current_player(self):
         return self._current_player
     
-    def _sos_check(self):
-        sos_list = []
-        # Horizontal
-        for r in range(self._size):
-            for c in range(self._size - 2):
-                if self._board[r][c:c+3] == ["S", "O", "S"]:
-                    sos_id = ('H', r, c)
-                    if sos_id not in self._found:
-                        self._found.add(sos_id)
-                        sos_list.append([(r,c),(r,c+1),(r,c+2)])
-
-        # Vertical
-        for c in range(self._size):
-            for r in range(self._size - 2):
-                if [self._board[r+i][c] for i in range(3)] == ["S", "O", "S"]:
-                    sos_id = ('V', r, c)
-                    if sos_id not in self._found:
-                        self._found.add(sos_id)
-                        sos_list.append([(r,c),(r+1,c),(r+2,c)])
-
-        # Diagonal TL-BR
-        for r in range(self._size - 2):
-            for c in range(self._size - 2):
-                if [self._board[r+i][c+i] for i in range(3)] == ["S", "O", "S"]:
-                    sos_id = ('D1', r, c)
-                    if sos_id not in self._found:
-                        self._found.add(sos_id)
-                        sos_list.append([(r,c),(r+1,c+1),(r+2,c+2)])
-
-        # Diagonal BL-TR
-        for r in range(self._size - 2):
-            for c in range(2, self._size):
-                if [self._board[r+i][c-i] for i in range(3)] == ["S", "O", "S"]:
-                    sos_id = ('D2', r, c)
-                    if sos_id not in self._found:
-                        self._found.add(sos_id)
-                        sos_list.append([(r,c),(r+1,c-1),(r+2,c-2)])
-
-        return sos_list
+    def get_scores(self):
+        return {"p1": 0, "p2": 0}
     
-    def cpu_check(self):
-        print(f"cpu_check called. P1 toggle: {self._p1_cpu_toggle}, P2 toggle: {self._p2_cpu_toggle}, Current: {self.get_current_player()}")
-        if (self.get_current_player() == "p1" and self._p1_cpu_toggle == 1) or (self.get_current_player() == "p2" and self._p2_cpu_toggle == 1):
-            return self._cpu_move()
-        return None
-        
-    def _cpu_move(self):
-        """CPU plays random valid spot with random S/O selection"""
-        board = self.get_board()
-        letter = "S" if random.randint(0,1) == 0 else "O"
-        while True:
-            r = random.randint(0, self.get_size()-1)
-            c = random.randint(0, self.get_size()-1)
-            if board[r][c] == "":
-                return (r,c,letter)
+    def get_found(self):
+        """Returns copy of found SOS sequences."""
+        return self._found.copy()
+
+    @staticmethod
+    def _scan_sos_static(board, size):
+        """ Simulates and scans for candidate SOS sequences """
+        found_local = []
+        # Horizontal
+        for r in range(size):
+            for c in range(size - 2):
+                if board[r][c:c+3] == ["S", "O", "S"]:
+                    found_local.append(('H', r, c))
+        # Vertical
+        for c in range(size):
+            for r in range(size - 2):
+                if [board[r+i][c] for i in range(3)] == ["S", "O", "S"]:
+                    found_local.append(('V', r, c))
+        # Diagonal TL-BR
+        for r in range(size - 2):
+            for c in range(size - 2):
+                if [board[r+i][c+i] for i in range(3)] == ["S", "O", "S"]:
+                    found_local.append(('D1', r, c))
+        # Diagonal BL-TR
+        for r in range(size - 2):
+            for c in range(2, size):
+                if [board[r+i][c-i] for i in range(3)] == ["S", "O", "S"]:
+                    found_local.append(('D2', r, c))
+        return found_local
+
+    def _sos_check(self):
+        """ Finds new SOS sequences, updates _found, and returns their coordinates. """
+        new_sos = []
+        all_sos = BaseGame._scan_sos_static(self._board, self._size)
+
+        for sos_id in all_sos:
+            if sos_id not in self._found:
+                self._found.add(sos_id)
+                direction, r, c = sos_id
+
+                if direction == 'H':
+                    new_sos.append([(r, c), (r, c+1), (r, c+2)])
+                elif direction == 'V':
+                    new_sos.append([(r, c), (r+1, c), (r+2, c)])
+                elif direction == 'D1':
+                    new_sos.append([(r, c), (r+1, c+1), (r+2, c+2)])
+                else:  # D2
+                    new_sos.append([(r, c), (r+1, c-1), (r+2, c-2)])
+
+        return new_sos
 
     def is_valid_move(self, row, col):
-        """Return True if the cell at (row, col) is empty."""
         return self._board[row][col] == ""
     
     def update_board(self, row, col, letter):
-        """Place the letter on the board."""
-        self._board[row][col] = letter
+        self._board[row][col] = letter    
 
-""" SimpleGame and GeneralGame Classes delegated to define rulesets """
-
+# --- Simple Game ---
 class SimpleGame(BaseGame):
-    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
-        super().__init__(size, p1_cpu_toggle, p2_cpu_toggle)  # Referenes BaseGame/shared parameters
+    def __init__(self, size):
+        super().__init__(size)
 
     def place_letter(self, row, col, letter):
         if self.is_valid_move(row, col):
             self.update_board(row, col, letter)
-            sos_list = self.sos_check()
+            sos_list = self._sos_check()
             board_full = all(cell != "" for board_row in self._board for cell in board_row)
 
             winner = None
@@ -150,20 +215,16 @@ class SimpleGame(BaseGame):
                 "game_over": board_full or winner is not None,
                 "winner": winner,
                 "sos_list": sos_list
-            }
+            }       
         return {"valid": False, "sos_found": 0, "game_over": False, "winner": None, "sos_list": []}
 
-    def sos_check(self):
-        return self._sos_check()
-
     def game_over(self):
-        # SOS Found; True, game ends.
         return bool(self._found)
 
+# --- General Game ---
 class GeneralGame(BaseGame):
-    def __init__(self, size, p1_cpu_toggle, p2_cpu_toggle):
-        super().__init__(size, p1_cpu_toggle, p2_cpu_toggle)  # Referenes BaseGame/shared parameters
-
+    def __init__(self, size):
+        super().__init__(size)
         self._p1_score = 0
         self._p2_score = 0
     
@@ -175,7 +236,7 @@ class GeneralGame(BaseGame):
             return {"valid": False, "sos_found": 0, "game_over": False, "winner": None, "sos_list": []}
 
         self._board[row][col] = letter
-        sos_list = self.sos_check()
+        sos_list = self._sos_check()
 
         if self.get_current_player() == "p1":
             self._p1_score += len(sos_list)
@@ -184,7 +245,6 @@ class GeneralGame(BaseGame):
 
         board_full = all(cell != "" for board_row in self._board for cell in board_row)
         
-        # Determine winner if game is over
         winner = None
         if board_full:
             winner = self.get_winner()
@@ -194,11 +254,7 @@ class GeneralGame(BaseGame):
 
         return {"valid": True, "sos_found": len(sos_list), "game_over": board_full, "winner": winner, "sos_list": sos_list}
 
-    def sos_check(self):
-        return self._sos_check()
-
     def get_winner(self):
-        """Returns 'p1', 'p2', or 'draw' based on scores."""
         if self._p1_score > self._p2_score:
             return "p1"
         elif self._p2_score > self._p1_score:
@@ -207,32 +263,4 @@ class GeneralGame(BaseGame):
             return "draw"
 
     def game_over(self):
-        # False: nothing, True: Game Ends
         return all(cell != "" for board_row in self._board for cell in board_row)
-
-# Debugging for refactor
-if __name__ == "__main__":
-    # Simple Mode Test
-    print("=== Simple Mode Test ===")
-    game = GameLogic(5, mode="simple")  # 5x5 board
-
-    print("Initial player:", game.get_current_player())
-    print("Placing S at (0,0):", game.place_letter(0, 0, "S"))
-    print("Placing O at (0,1):", game.place_letter(0, 1, "O"))
-    print("Placing S at (0,2):", game.place_letter(0, 2, "S"))
-
-    print("Current player:", game.get_current_player())
-    print("Is game over?", game.game_over())
-
-    # General Mode Test
-    print("\n=== General Mode Test ===")
-    game = GameLogic(5, mode="general")  # 5x5 board
-
-    print("Initial player:", game.get_current_player())
-    print("Placing S at (0,0):", game.place_letter(0, 0, "S"))
-    print("Placing O at (0,1):", game.place_letter(0, 1, "O"))
-    print("Placing S at (0,2):", game.place_letter(0, 2, "S"))
-
-    print("Current player:", game.get_current_player())
-    print("Is game over?", game.game_over())
-    print("Scores -> P1:", game.game_mode._p1_score, "P2:", game.game_mode._p2_score)
