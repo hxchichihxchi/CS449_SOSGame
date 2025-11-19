@@ -1,48 +1,95 @@
 import tkinter as tk
-from gameLogic import GameLogic
+from gameLogic import GameLogic, PLAYER_1, PLAYER_2
 
 DEF_FONT_SIZE = 20
 DEF_FONT = "Arial"
+SMALL_FONT_SIZE = 10
+ENTRY_WIDTH = 10
+TITLE_BOTTOM_PADDING = 20
+SECTION_TOP_PADDING = 20
+SECTION_BOTTOM_PADDING = 5
+BUTTON_PADDING = 10
+ALERT_TOP_PADDING = 20
+PANEL_WIDTH = 200
+BOARD_SIZE = 600
+SCORE_SIZE = 72
+P1_COLOR = "cyan"
+P2_COLOR = "red"
+CPU_MOVE_DELAY = 250
 
 class MenuPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-
-        # Outer frame fills the whole parent
         self.pack_propagate(False)
+        self.create_inner_frame()
+        self.create_title()
+        self.create_game_mode_selector()
+        self.create_grid_size_input()
+        self.create_cpu_toggle()
+        self.create_start_button()
+        self.create_alert_label()
 
-        # Inner frame for widgets
-        inner_frame = tk.Frame(self)
-        inner_frame.place(relx=0.5, rely=0.5, anchor="center")
+    def create_inner_frame(self):
+        self.inner_frame = tk.Frame(self)
+        self.inner_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Widgets
-        tk.Label(inner_frame, text="SOS Game", font=(DEF_FONT, DEF_FONT_SIZE), fg="white").pack(pady=(0, 20))
+    def create_title(self):
+        title_label = tk.Label(self.inner_frame, text="SOS Game", font=(DEF_FONT, DEF_FONT_SIZE), fg="white")
+        title_label.pack(pady=(0, TITLE_BOTTOM_PADDING))
 
+    def create_game_mode_selector(self):
         self.selected_option = tk.StringVar(value="simple")
-        tk.Radiobutton(inner_frame, text="Simple Game", variable=self.selected_option, value="simple", fg="white").pack(pady=5)
-        tk.Radiobutton(inner_frame, text="General Game", variable=self.selected_option, value="general", fg="white").pack()
+        game_modes = [("Simple Game", "simple"), ("General Game", "general")]
+        for text, value in game_modes:
+            rb = tk.Radiobutton(self.inner_frame, text=text, variable=self.selected_option, value=value, fg="white")
+            rb.pack(pady=5)
 
-        tk.Label(inner_frame, text="Enter Grid Size (e.g., 3, 5, 7):", font=(DEF_FONT, 10), fg="white").pack(pady=(20, 5))
-        self.entry = tk.Entry(inner_frame, width=10, font=(DEF_FONT, 10))
+    def create_grid_size_input(self):
+        grid_label = tk.Label(self.inner_frame, text="Enter Grid Size (e.g., 3, 5, 7):", font=(DEF_FONT, SMALL_FONT_SIZE), fg="white")
+        grid_label.pack(pady=(SECTION_TOP_PADDING, SECTION_BOTTOM_PADDING))
+        self.entry = tk.Entry(self.inner_frame, width=ENTRY_WIDTH, font=(DEF_FONT, SMALL_FONT_SIZE))
         self.entry.pack(pady=5)
 
-        tk.Label(inner_frame, text="CPU Player Toggle", font=(DEF_FONT, 10), fg="white").pack()
-        
-        # Default to Disabled
+    def create_cpu_toggle(self):
+        cpu_label = tk.Label(self.inner_frame, text="CPU Player Toggle", font=(DEF_FONT, SMALL_FONT_SIZE), fg="white")
+        cpu_label.pack()
         self.cpu1_toggle = tk.IntVar(value=0)
         self.cpu2_toggle = tk.IntVar(value=0)
+        self.create_cpu_checkbuttons()
 
-        self.cpu_p1 = tk.Checkbutton(inner_frame, text="P1", font=(DEF_FONT, 10), fg="white", variable=self.cpu1_toggle)
+    def create_cpu_checkbuttons(self):
+        self.cpu_p1 = tk.Checkbutton(self.inner_frame, text="P1", font=(DEF_FONT, SMALL_FONT_SIZE), fg="white", variable=self.cpu1_toggle)
         self.cpu_p1.pack()
-        self.cpu_p2 = tk.Checkbutton(inner_frame, text="P2", font=(DEF_FONT, 10), fg="white", variable=self.cpu2_toggle)
+        self.cpu_p2 = tk.Checkbutton(self.inner_frame, text="P2", font=(DEF_FONT, SMALL_FONT_SIZE), fg="white", variable=self.cpu2_toggle)
         self.cpu_p2.pack()
 
-        tk.Button(inner_frame, text="Start Game", command=self.start_game).pack(pady=10)
+    def create_start_button(self):
+        start_button = tk.Button(self.inner_frame, text="Start Game", command=self.start_game)
+        start_button.pack(pady=BUTTON_PADDING)
 
-        # Alerts for invalid user-input parameters
-        self.alert_label = tk.Label(inner_frame, text="", font=(DEF_FONT, 10), fg="white")
-        self.alert_label.pack(pady=(20, 5))
+    def create_alert_label(self):
+        self.alert_label = tk.Label(self.inner_frame, text="", font=(DEF_FONT, SMALL_FONT_SIZE), fg="white")
+        self.alert_label.pack(pady=(ALERT_TOP_PADDING, SECTION_BOTTOM_PADDING))
+
+    def start_game(self):
+        value = self.entry.get()
+        if not value:
+            self.alert_label.config(text="Enter a value for board size.")
+            return
+        try:
+            size = int(value)
+            if size < 3 or size > 15:
+                raise ValueError()
+            mode = self.selected_option.get()
+            if not mode:
+                self.alert_label.config(text="Please select a game mode.")
+                return
+            self.controller.set_game_config(size, mode, self.cpu1_toggle.get(), self.cpu2_toggle.get())
+            self.controller.show_frame("GamePage")
+            print(f"CPU Toggles - P1:{self.controller.p1_cpu_toggle} P2:{self.controller.p2_cpu_toggle}")
+        except ValueError:
+            self.alert_label.config(text="Gameboard dimensions must be size 3-15.")
 
     def start_game(self):
         value = self.entry.get()
@@ -58,23 +105,12 @@ class MenuPage(tk.Frame):
                 self.alert_label.config(text="Please select a game mode.")
                 return
 
-            self.controller.grid_size = size
-            self.controller.mode = mode
-
-            self.controller.p1_cpu_toggle = self.cpu1_toggle.get()
-            self.controller.p2_cpu_toggle = self.cpu2_toggle.get()
-
+            self.controller.set_game_config(size, mode, self.cpu1_toggle.get(), self.cpu2_toggle.get())
             self.controller.show_frame("GamePage")
             print(f"CPU Toggles - P1:{self.controller.p1_cpu_toggle} P2:{self.controller.p2_cpu_toggle}")
 
         except ValueError:
             self.alert_label.config(text="Gameboard dimensions must be size 3-15.")
-
-PANEL_WIDTH = 200
-BOARD_SIZE = 600
-SCORE_SIZE = 72
-P1_COLOR = "cyan"
-P2_COLOR = "red"
 
 class GamePage(tk.Frame):
     def __init__(self, parent, controller):
@@ -103,13 +139,13 @@ class GamePage(tk.Frame):
     def _player_widgets(self, parent, player_name, player_color):
         # Score/Points
         score_label = tk.Label(parent, text="0", fg=player_color, font=(DEF_FONT, SCORE_SIZE))
-        score_label.pack(padx=10)
+        score_label.pack(padx=BUTTON_PADDING)
 
         # Player Label for UI
-        tk.Label(parent, text=player_name, fg=player_color, font=(DEF_FONT, DEF_FONT_SIZE)).pack(padx=10)
+        tk.Label(parent, text=player_name, fg=player_color, font=(DEF_FONT, DEF_FONT_SIZE)).pack(padx=BUTTON_PADDING)
 
         # S/O Selection
-        selection = tk.StringVar(value = "S")   # Defaults to S
+        selection = tk.StringVar(value = "S")
         s_button = tk.Radiobutton(parent, text="S", variable=selection, value="S", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
         o_button = tk.Radiobutton(parent, text="O", variable=selection, value="O", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
 
@@ -139,7 +175,7 @@ class GamePage(tk.Frame):
         self.board_wrapper.grid_columnconfigure(0, weight=1)
 
         self.mode_label = tk.Label(self.board_wrapper, text="", fg="white", font=(DEF_FONT, DEF_FONT_SIZE))
-        self.mode_label.grid(row=0, column=0, pady=10)
+        self.mode_label.grid(row=0, column=0, pady=BUTTON_PADDING)
 
         self.board_frame = tk.Frame(self.board_wrapper, width=BOARD_SIZE, height=BOARD_SIZE)
         self.board_frame.grid(row=1, column=0)
@@ -155,8 +191,7 @@ class GamePage(tk.Frame):
 
         self.bottom_frame.grid_columnconfigure(0, weight=1)
         self.new_game_btn = tk.Button(self.bottom_frame, text="New Game", font=(DEF_FONT, DEF_FONT_SIZE), command=self.new_game)
-        self.new_game_btn.grid(row=1, column=0, pady=(10, 0))
-
+        self.new_game_btn.grid(row=1, column=0, pady=(BUTTON_PADDING, 0))
 
     def set_logic(self, logic):
         self.logic = logic
@@ -166,8 +201,8 @@ class GamePage(tk.Frame):
 
     def update_score_visibility(self):
         if self.controller.mode == "general":
-            self.left_score_label.pack(padx=10, before=self.left_frame.winfo_children()[1])
-            self.right_score_label.pack(padx=10, before=self.right_frame.winfo_children()[1])
+            self.left_score_label.pack(padx=BUTTON_PADDING, before=self.left_frame.winfo_children()[1])
+            self.right_score_label.pack(padx=BUTTON_PADDING, before=self.right_frame.winfo_children()[1])
         else:
             self.left_score_label.pack_forget()
             self.right_score_label.pack_forget()
@@ -186,7 +221,6 @@ class GamePage(tk.Frame):
             self.left_cpu_label.pack_forget()
             self.left_s_button.pack(pady=5)
             self.left_o_button.pack(pady=5)
-
         if self.controller.p2_cpu_toggle == 1:
             print("CPU P2: Enabled, hide P2 S/O selection")
             self.right_cpu_label.pack()
@@ -244,7 +278,7 @@ class GamePage(tk.Frame):
 
     def _get_player_letter(self):
         current_player = self.logic.get_current_player()
-        if current_player == "p1":
+        if current_player == PLAYER_1:
             return self.left_choice.get()
         else:
             return self.right_choice.get()
@@ -253,13 +287,13 @@ class GamePage(tk.Frame):
         self.labels[row][col].config(text=letter, fg="black")
 
     def _cpu_check_and_play(self):
-        if self.game_active == False:
+        if not self.game_active:
             return
         cpu_move = self.logic.get_cpu_move()
         if cpu_move:
             print(f"CPU move result: {cpu_move}")
             row, col, letter = cpu_move
-            self.after(100, lambda: self._execute_cpu_move(row, col, letter))
+            self.after(CPU_MOVE_DELAY, lambda: self._execute_cpu_move(row, col, letter))
     
     def _execute_cpu_move(self, row, col, letter):
         if not self.game_active:
@@ -276,10 +310,9 @@ class GamePage(tk.Frame):
         else:
             self._update_turn_label()
             self._cpu_check_and_play()
-            #print(f"Checking for CPU... Current player: {self.logic.get_current_player()}")
             
     def _draw_sos_sequences(self, sos_list):
-        color = P1_COLOR if self.logic.get_current_player() == "p1" else P2_COLOR
+        color = P1_COLOR if self.logic.get_current_player() == PLAYER_1 else P2_COLOR
         for sequence in sos_list:
             r1, c1 = sequence[0]
             r2, c2 = sequence[2]
@@ -304,22 +337,22 @@ class GamePage(tk.Frame):
                 return f"{result['winner'].upper()} Wins!"
         else:
             scores = self.logic.get_scores()
-            if scores["p1"] > scores["p2"]:
+            if scores[PLAYER_1] > scores[PLAYER_2]:
                 return "P1 Wins!"
-            elif scores["p1"] < scores["p2"]:
+            elif scores[PLAYER_1] < scores[PLAYER_2]:
                 return "P2 Wins!"
             else:
                 return "Draw!"
 
     def _update_turn_label(self):
-        current = "P1" if self.logic.get_current_player() == "p1" else "P2"
+        current = "P1" if self.logic.get_current_player() == PLAYER_1 else "P2"
         self.turn_label.config(text=f"Current Turn: {current}")
 
     def _update_scores(self):
         if self.controller.mode == "general":
             scores = self.logic.get_scores()
-            self.left_score_label.config(text=str(scores["p1"]))
-            self.right_score_label.config(text=str(scores["p2"]))
+            self.left_score_label.config(text=str(scores[PLAYER_1]))
+            self.right_score_label.config(text=str(scores[PLAYER_2]))
 
     def _draw_line(self, r1, c1, r2, c2, color):
         positions = self._get_line_positions(r1, c1, r2, c2)
@@ -339,6 +372,7 @@ class GamePage(tk.Frame):
         elif dr == 2 and dc == -2:
             return [(r1, c1), (r1 + 1, c1 - 1), (r1 + 2, c1 - 2)]
         else:
+            print(f"Warning: Invalid line positions ({r1},{c1}) to ({r2},{c2})")
             return []
 
 class SOSApp(tk.Tk):
@@ -347,7 +381,6 @@ class SOSApp(tk.Tk):
         self.title("SOS Game")
         self.geometry("900x800")
 
-        # Default values so tests don’t explode
         self.grid_size = None
         self.mode = None
         self.p1_cpu_toggle = False
@@ -366,6 +399,12 @@ class SOSApp(tk.Tk):
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("MenuPage")
+
+    def set_game_config(self, grid_size, mode, p1_cpu, p2_cpu):
+        self.grid_size = grid_size
+        self.mode = mode
+        self.p1_cpu_toggle = p1_cpu
+        self.p2_cpu_toggle = p2_cpu
 
     def show_frame(self, page_name):
         frame = self.frames[page_name]
